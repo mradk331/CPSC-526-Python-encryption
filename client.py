@@ -7,6 +7,7 @@ import string
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding
+import time
 
 BLOCK_SIZE = 1024
 
@@ -51,7 +52,11 @@ def decrypt_message(message):
         if message != b'':
             decrypted_data = decrypted_data[:-decrypted_data[-1]]
 
-        return decrypted_data.decode("UTF-8")
+        try:
+            return decrypted_data.decode("UTF-8")
+
+        except UnicodeDecodeError as e:
+            sys.stderr.write("Unicode decode error.")
 
     else:
 
@@ -293,6 +298,7 @@ if __name__ == "__main__":
 
         read_file(command, filename, client_socket)
 
+    time.sleep(0.1)
     # Final message before closing down the connection (Initiated on a successful read or write.)
     final_message = client_socket.recv(BLOCK_SIZE)
 

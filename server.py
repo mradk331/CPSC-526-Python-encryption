@@ -9,6 +9,8 @@ import time
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding
+import  datetime
+
 
 BLOCK_SIZE = 1024
 
@@ -26,12 +28,17 @@ def request(client_socket):
     operation = fileop[0]
     filename = fileop[1]
 
+    sys.stdout.write(
+        current_time() + " command: " + operation + " filename: " + filename + "\n")
+
     # Check if operation and filename are valid
     if operation == "read":
 
         if not os.path.isfile(filename):
 
-            print("Error: file client is trying to read does not exist. Disconnecting client.")
+            sys.stdout.write(
+                current_time() + " Status: error, file client is trying to read does not exist\n")
+
             message = encrypt_message(("Error, the file " + filename
                                        + " you are trying to read does not exist. Disconnecting..."))
             client_socket.sendall(message)
@@ -48,12 +55,13 @@ def request(client_socket):
 
             # Delay sending the file chunks so as to not send the above success, filesize along with
             # a part of a file chunk
-            time.sleep(0.2)
+            time.sleep(0.1)
 
             data_exchange(client_socket, operation, filename)
 
     elif operation == "write":
 
+        time.sleep(0.1)
         # Indicate success
         message = encrypt_message("Success, write operation proceeding.")
         client_socket.sendall(message)
@@ -63,8 +71,11 @@ def request(client_socket):
         data_exchange(client_socket, operation, filename)
 
     else:
+
+        sys.stdout.write(
+            current_time() + " Status: error, operation request: " + operation + " on file " + filename + "\n")
+
         # Operation does not exist
-        print("Operation request: " + operation+ " on file " + filename + " does not exist. Disconnecting client.")
         message = encrypt_message(("Error, operation " + operation + " you are trying to perform on " + filename + " does not exist. Disconnecting..."))
         client_socket.sendall(message)
 
@@ -92,9 +103,11 @@ def data_exchange(client_socket, operation, filename):
         # Close file
         file.close()
 
-        time.sleep(.1)
+        time.sleep(.2)
 
-        print("Operation successful. Disconnecting from client.")
+        sys.stdout.write(
+            current_time() + " Status: operation successful\n")
+
         message = encrypt_message((operation + " operation successful. Disconnecting..."))
         client_socket.sendall(message)
         client_socket.close()
@@ -120,8 +133,6 @@ def data_exchange(client_socket, operation, filename):
             # Keep writing chunks that are the block size
             while len(write_chunk) == BLOCK_SIZE:
 
-               # print("WRITE CHUNK: " + decrypt_chunk) debug purpose
-
                 chunk_length = len(write_chunk)
 
                 file_size += chunk_length
@@ -137,32 +148,46 @@ def data_exchange(client_socket, operation, filename):
                 # If the file we are reading in becomes larger
                 # than or equal to the available disk size, indicate error and disconnect
                 else:
-
-                    print("Error: client trying to write a file that is larger "
-                            "than the available disk size. Disconnecting client.")
+                    sys.stderr.write(
+                        current_time() + " Status: error, client trying to write a file that is larger "
+                                         "than the available disk size.\n")
 
                     message = encrypt_message("Error, you are trying to upload a file that "
-                                                "is larger than the available server disk size. Disconnecting...")
+                                              "is larger than the available server disk size. Disconnecting...")
 
                     client_socket.sendall(message)
 
                     client_socket.close()
 
             if file_size < disk_size:
-                #print("Last WRITE CHUNK: " + decrypt_chunk) debug
 
                 file.write(decrypt_chunk.encode("UTF-8"))
 
+                # Can't send too fast to client - hence delay
+                time.sleep(.1)
+
+                sys.stdout.write(current_time() + " Status: operation successful\n")
+                message = encrypt_message((operation + " operation successful. Disconnecting..."))
+                client_socket.sendall(message)
+                client_socket.close()
+
+
+
+            # If the file we are reading in becomes larger
+            # than or equal to the available disk size, indicate error and disconnect
+            else:
+                sys.stderr.write(
+                    current_time() + " Status: error, client trying to write a file that is larger "
+                                     "than the available disk size.\n")
+
+                message = encrypt_message("Error, you are trying to upload a file that "
+                                          "is larger than the available server disk size. Disconnecting...")
+
+                client_socket.sendall(message)
+
+                client_socket.close()
 
         file.close()
-
-        # Can't send too fast to client - hence delay
-        time.sleep(.1)
-
-        print("Operation successful. Disconnecting from client.")
-        message = encrypt_message((operation + " operation successful. Disconnecting..."))
-        client_socket.sendall(message)
-        client_socket.close()
 
 
 # Function used to encrypt every message sent subsequently after the first message to the client
@@ -211,8 +236,12 @@ def decrypt_message(message):
         if message != b'':
 
             decrypted_data = decrypted_data[:-decrypted_data[-1]]
+        try:
 
-        return decrypted_data.decode("UTF-8")
+            return decrypted_data.decode("UTF-8")
+
+        except UnicodeDecodeError as e:
+            sys.stderr.write("Unicode decode error")
 
     else:
 
@@ -224,6 +253,13 @@ def decrypt_message(message):
 def string_generator():
 
     return ''.join(random.SystemRandom().choice(string.ascii_letters + string.digits) for _ in range(32))
+
+# Get the current time
+def current_time():
+
+    # Current time the connection is initiated
+    curr_time = datetime.datetime.now().time()
+    return curr_time.strftime("%H:%M:%S")
 
 
 # Function responsible for sending a random string challenge, receiving the response from the client,
@@ -256,14 +292,11 @@ def authentication(secret_key, client_socket):
     # Strip of any special characters
     response = response.strip()
 
-    print("RESPONSE: " + response)
-
     # We hash the server secret key with the same random_string and obtain the hexadecimal digest
     secret_key_hash = hmac.new(secret_key, msg=random_string.encode("UTF-8"), digestmod=hashlib.sha256)
 
     # Obtain hex-digest
     secret_key_digest = secret_key_hash.hexdigest()
-    print("SECRET KEY DIGEST: " + secret_key_digest)
 
     # If the digest we computed is the same as the one provided by the response of the client, then the client has the
     # correct secret key
@@ -296,15 +329,15 @@ if __name__ == "__main__":
     HOST = "localhost"
 
     if len(sys.argv) != 3:
-        print("Error: Wrong number of arguments provided\n")
-        print("USAGE: 'python server.py [port] [key]'")
+        sys.stdout.write("Error: Wrong number of arguments provided\n")
+        sys.stdout.write("USAGE: 'python server.py [port] [key]'\n")
         quit()
 
     port = sys.argv[1]
     key = sys.argv[2]
 
-    print("Listening on port: " + port)
-    print("Using secret key: " + key)
+    sys.stdout.write("Listening on port: " + port + "\n")
+    sys.stdout.write("Using secret key: " + key + "\n")
 
     # Convert port string to int
     port = int(port)
@@ -329,7 +362,7 @@ if __name__ == "__main__":
         data = data.split(":")
 
         if len(data) != 2:
-            print("Error: Cipher or nonce not provided. Disconnecting client.")
+            sys.stdout.write(current_time() + " Error: Cipher or nonce not provided. Disconnecting client.\n")
 
             client_socket.sendall("Error: cipher or nonce not provided. Disconnecting...".encode("UTF-8"))
             client_socket.close()
@@ -340,16 +373,25 @@ if __name__ == "__main__":
             # Set up the IV and session-key
             init_vector = hashlib.sha256((key + nonce + "IV").encode("UTF-8"))
 
-            # IV has to be 16 bytes
             init_vector = init_vector.hexdigest()
-            init_vector = init_vector[:16]
 
             session_key = hashlib.sha256((key + nonce + "SK").encode("UTF-8"))
 
-            print("CIPHER: " + cipher)
+            sys.stdout.write(current_time() + ":" + " new connection from " + str(client_address)
+                             + " cipher=" + cipher + "\n")
+
+            sys.stdout.write(current_time() + ":" + " nonce=" + nonce + "\n")
+            sys.stdout.write(current_time() + ":" + " IV=" + init_vector + "\n")
+            sys.stdout.write(current_time() + ":" + " SK=" + session_key.hexdigest() + "\n")
+
+            # IV has to be 16 bytes
+            init_vector = init_vector[:16]
+
             # Check if incorrect cipher was provided
             if cipher != "aes128" and cipher != "aes256" and cipher != "null":
-                print("Error: Invalid cipher provided. Disconnecting client.")
+
+                sys.stdout.write(current_time() + " Status: error, invalid cipher provided. Disconnecting client.\n")
+
                 client_socket.sendall(("Error " + cipher + " is not supported. Disconnecting...").encode("UTF-8"))
                 client_socket.close()
 
@@ -386,4 +428,5 @@ if __name__ == "__main__":
                     request(client_socket)
 
                 else:
-                    print("Client was not authenticated. Secret keys not matching.")
+                    sys.stdout.write(
+                        current_time() + " Status: error, client was not authenticated. Secret keys not matching.\n")
