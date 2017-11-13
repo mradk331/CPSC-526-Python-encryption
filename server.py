@@ -71,6 +71,7 @@ def request(client_socket):
         client_socket.close()
 
 
+# Function where the data transfers occur depending on if the operation is a read or a write
 def data_exchange(client_socket, operation, filename):
 
     if operation == "read":
@@ -79,6 +80,7 @@ def data_exchange(client_socket, operation, filename):
         file = open(filename, 'rb')
         line = file.read(BLOCK_SIZE - 1)
 
+        # While there is a line read from the file, keep sending it as a chunk to the client
         while line:
 
             message = encrypt_message(line.decode("UTF-8"))
@@ -89,7 +91,9 @@ def data_exchange(client_socket, operation, filename):
 
         # Close file
         file.close()
+
         time.sleep(.1)
+
         print("Operation successful. Disconnecting from client.")
         message = encrypt_message((operation + " operation successful. Disconnecting..."))
         client_socket.sendall(message)
@@ -110,30 +114,26 @@ def data_exchange(client_socket, operation, filename):
         # We open file with filename and keep writing received chunks of data to it
         with open(filename, 'wb') as file:
 
-            # Guarantees receive will never block indefinitely
-            #client_socket.setblocking(0)
-
-
             write_chunk = client_socket.recv(BLOCK_SIZE)
             decrypt_chunk = decrypt_message(write_chunk)
 
+            # Keep writing chunks that are the block size
             while len(write_chunk) == BLOCK_SIZE:
 
-                # If nothing is read, break out of the loop
+               # print("WRITE CHUNK: " + decrypt_chunk) debug purpose
 
-                print("WRITE CHUNK: " + decrypt_chunk)
-
-                chunk_length = len(write_chunk) #might be write, too tired
+                chunk_length = len(write_chunk)
 
                 file_size += chunk_length
 
                 # Write to file on disk
                 if file_size < disk_size:
-                    print("122112312312312312313" + str(len(write_chunk)))
+
                     file.write(decrypt_chunk.encode("UTF-8"))
+
                     write_chunk = client_socket.recv(BLOCK_SIZE)
                     decrypt_chunk = decrypt_message(write_chunk)
-                    print("HERERERERRERER " + str(len(write_chunk)))
+
                 # If the file we are reading in becomes larger
                 # than or equal to the available disk size, indicate error and disconnect
                 else:
@@ -149,24 +149,21 @@ def data_exchange(client_socket, operation, filename):
                     client_socket.close()
 
             if file_size < disk_size:
-                print("Last WRITE CHUNK: " + decrypt_chunk)
+                #print("Last WRITE CHUNK: " + decrypt_chunk) debug
 
                 file.write(decrypt_chunk.encode("UTF-8"))
 
 
-            # If zero bytes being written, it will still create a zero
-            # bytes file but setblock will throw an exception on receive
-            # on receive
-            print("FUCING ERRRORSRSRSRSRSRSRSRSR")
-
-
         file.close()
-        #can't send too fast to client
+
+        # Can't send too fast to client - hence delay
         time.sleep(.1)
+
         print("Operation successful. Disconnecting from client.")
         message = encrypt_message((operation + " operation successful. Disconnecting..."))
         client_socket.sendall(message)
         client_socket.close()
+
 
 # Function used to encrypt every message sent subsequently after the first message to the client
 def encrypt_message(message):
@@ -178,18 +175,12 @@ def encrypt_message(message):
 
         message = message.encode("UTF-8")
 
-        # Initialize padder
-        #padder = padding.PKCS7(128).padder()
-
         # Initialize the encryptor
         encryptor = cipher_function.encryptor()
 
+        # Pad the message to a multiple of 16 based on the length modulo 16 subtracted by 16
         length = 16 - (len(message) % 16)
         message += bytes([length]) * length
-        print("kill me " + str(len(message)))
-        # Pad the message
-        #padded_data = padder.update(message.encode("UTF-8"))
-        #padded_data += padder.finalize()
 
         # Encrypt the padded message
         encrypted_message = encryptor.update(message) + encryptor.finalize()
@@ -209,31 +200,19 @@ def decrypt_message(message):
 
     if cipher == "aes128" or cipher == "aes256":
 
-        # Initialize unpadder
-        #unpadder = padding.PKCS7(128).unpadder()
-
         # Initialize decryptor
         decryptor = cipher_function.decryptor()
 
+        # Decrypt the message
         decrypted_data = decryptor.update(message) + decryptor.finalize()
 
+        # If the message is not an empty, remove padding by slicing away the end padding in
+        # decrypted data. [-1] returns the size of the padding.
         if message != b'':
+
             decrypted_data = decrypted_data[:-decrypted_data[-1]]
 
-        #return decrypted_data.decode("UTF-8")
-
-        #try:
-            # Unpad the decrypted data
-        #unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
-
         return decrypted_data.decode("UTF-8")
-
-        # Return decrypted if there is no padding to be unpadded
-        #except ValueError:
-            #unpadded_data = unpadder.update(decrypted_data)
-            #return decrypted_data.decode("UTF-8")
-
-
 
     else:
 
@@ -247,6 +226,8 @@ def string_generator():
     return ''.join(random.SystemRandom().choice(string.ascii_letters + string.digits) for _ in range(32))
 
 
+# Function responsible for sending a random string challenge, receiving the response from the client,
+# and authenticating the client to move onto the response request from client
 def authentication(secret_key, client_socket):
 
     authenticated = False
@@ -393,7 +374,7 @@ if __name__ == "__main__":
                                              backend=default_backend())
 
                 # Indicate success to user
-                success = encrypt_message("Success\n")
+                success = encrypt_message("Successfully received cipher.")
                 client_socket.sendall(success)
 
                 # Authenticate the client

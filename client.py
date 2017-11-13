@@ -19,15 +19,8 @@ def encrypt_message(message):
     if cipher == "aes128" or cipher == "aes256":
         message = message.encode("UTF-8")
 
-        # Initialize padder
-        #padder = padding.PKCS7(128).padder()
-
         # Initialize the encryptor
         encryptor = cipher_function.encryptor()
-
-        # Pad the message
-        #padded_data = padder.update(message.encode("UTF-8"))
-        #padded_data += padder.finalize()
 
         length = 16 - (len(message) % 16)
         message += bytes([length]) * length
@@ -50,26 +43,15 @@ def decrypt_message(message):
 
     if cipher == "aes128" or cipher == "aes256":
 
-        # Initialize unpadder
-        #unpadder = padding.PKCS7(128).unpadder()
-
         # Initialize decryptor
         decryptor = cipher_function.decryptor()
 
         decrypted_data = decryptor.update(message) + decryptor.finalize()
+
         if message != b'':
             decrypted_data = decrypted_data[:-decrypted_data[-1]]
 
-        #try:
-            # Unpad the decrypted data
-        #unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
-
         return decrypted_data.decode("UTF-8")
-
-            # Return decrypted if there is no padding to be unpadded
-        #except ValueError:
-            #unpadded_data = unpadder.update(decrypted_data)
-            #return decrypted_data.decode("UTF-8")
 
     else:
 
@@ -77,6 +59,7 @@ def decrypt_message(message):
         return message.decode("UTF-8")
 
 
+# Responsible for reading the file from the server to standard output
 def read_file(command, filename, client_socket):
 
     try:
@@ -91,14 +74,13 @@ def read_file(command, filename, client_socket):
 
         ack = ack_size[0]
 
-        print("Server response: " + ack)
+        sys.stderr.write(ack + "\n")
 
         # Check if file size received
         if len(ack_size) == 2:
 
             size_of_file = ack_size[1]
             size_of_file_counter = int(size_of_file)
-
 
             file_output = bytearray()
 
@@ -107,13 +89,13 @@ def read_file(command, filename, client_socket):
 
                 # We don't wanna read in 1024 if there is less than 1024 bytes left
                 if size_of_file_counter < BLOCK_SIZE:
-                    print("I want to die" + size_of_file + "counter " + str(size_of_file_counter))
+
                     data_chunk = client_socket.recv(BLOCK_SIZE)
                     data_chunk = decrypt_message(data_chunk)
                     data_chunk = data_chunk.encode("UTF-8")
 
                 else:
-                    print("loop")
+
                     data_chunk = client_socket.recv(BLOCK_SIZE)
                     data_chunk = decrypt_message(data_chunk)
                     data_chunk = data_chunk.encode("UTF-8")
@@ -133,12 +115,16 @@ def read_file(command, filename, client_socket):
 
     except socket.error as e:
 
-        print("Server connection closing...")
+        sys.stderr.write("Server connection closing...\n")
         quit()
 
 
+# Responsible for reading a file from standard input and sending (writing) it to the server, chunk by chunk
+# whilst not reading into memory
 def write_file(command, filename, client_socket):
+
     global cipher
+
     try:
 
         message = encrypt_message((command + ":" + filename))
@@ -147,21 +133,23 @@ def write_file(command, filename, client_socket):
         # Receive server acknowledgement
         ack = client_socket.recv(BLOCK_SIZE)
         ack = decrypt_message(ack)
-        print("Server response: " + ack)
 
-        #content = sys.stdin.buffer.read(BLOCK_SIZE - 1).decode("UTF-8")
+        sys.stderr.write(ack + "\n")
+
+        # Make sure that if the cipher used is not the null cipher, we read in 1023 bytes so as to always
+        # pad the content when encrypting and depad when decrypting
         if cipher != "null":
             content = sys.stdin.buffer.read(BLOCK_SIZE - 1).decode("UTF-8")
+
+            # This will return a block size that is a multiple of 16 bytes
             content = encrypt_message(content)
+
         else:
             content = sys.stdin.buffer.read(BLOCK_SIZE)
 
-
-
-
-        # While the content length read in from stdin is a 1023, keep getting chunk and sending it to the server
+        # While the content length read in from stdin is a 1024, keep getting chunk and sending it to the server
         while len(content) == BLOCK_SIZE:
-            print("SENDING STUFF HERE \n")
+
             client_socket.sendall(content)
 
             if cipher != "null":
@@ -177,10 +165,11 @@ def write_file(command, filename, client_socket):
 
     except socket.error as e:
 
-        print("Server connection closing...")
+        sys.stderr.write("Server connection closing...\n")
         quit()
 
 
+# Creates a hex digest response of the random string challenge obtained by the server
 def challenge_response(secret_key, challenge):
 
     # Encode the key into bytes
@@ -204,8 +193,8 @@ def string_generator():
 if __name__ == "__main__":
 
     if len(sys.argv) != 6:
-        print("Wrong number of arguments provided\n")
-        print("USAGE: 'python client.py [command] [filename] [hostname]:[port] [cipher] [key]'")
+        sys.stderr.write("Wrong number of arguments provided\n")
+        sys.stderr.write("USAGE: 'python client.py [command] [filename] [hostname]:[port] [cipher] [key]'")
         quit()
 
     command = sys.argv[1]
@@ -216,12 +205,12 @@ if __name__ == "__main__":
 
     # Check if colon provided to separate hostname and port
     if sys.argv[3].find(":") == -1:
-        print("Semi-colon missing\n")
-        print("USAGE: 'python client.py [command] [filename] [hostname]:[port] [cipher] [key]'")
+        sys.stderr.write("Semi-colon missing\n")
+        sys.stderr.write("USAGE: 'python client.py [command] [filename] [hostname]:[port] [cipher] [key]'\n")
         quit()
 
     if not (command == "read" or command == "write"):
-        print("Error: wrong operation given. Operation has to be either read or write")
+        sys.stderr.write("Error: wrong operation given. Operation has to be either read or write\n")
         quit()
 
     # Split the hostname and port number string argument into two variables holding each respectively
@@ -273,15 +262,13 @@ if __name__ == "__main__":
     # Receive server acknowledgement
     ack = client_socket.recv(BLOCK_SIZE)
     ack = decrypt_message(ack)
-    print("Server response: " + ack)
+    sys.stderr.write(ack + "\n")
 
     # Get the random string challenge from the server and create a response
     challenge = client_socket.recv(BLOCK_SIZE)
     challenge = challenge.strip()
 
     challenge = decrypt_message(challenge)
-
-    print("CHALLENGE: " + challenge)
 
     digest_response = challenge_response(key, challenge.encode("UTF-8"))
     digest_response = encrypt_message(digest_response)
@@ -294,7 +281,8 @@ if __name__ == "__main__":
 
     authentication_response = decrypt_message(authentication_response)
 
-    print("Server authentication response: " + authentication_response)
+    sys.stderr.write(authentication_response + "\n")
+
 
     # Send the filename and the operation we wish to do upon it to the server
     if command == "write":
@@ -305,10 +293,11 @@ if __name__ == "__main__":
 
         read_file(command, filename, client_socket)
 
+    # Final message before closing down the connection (Initiated on a successful read or write.)
     final_message = client_socket.recv(BLOCK_SIZE)
 
     final_message = decrypt_message(final_message)
 
-    print(final_message)
+    sys.stderr.write(final_message + "\n")
 
     client_socket.close()

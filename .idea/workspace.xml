@@ -2,7 +2,11 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="55e16ccc-4231-49d9-83f9-6b35f813cbce" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/doom1.txt" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/doom2.txt" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/doom3.txt" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/doom4.txt" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/doom5.txt" afterPath="" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/client.py" afterPath="$PROJECT_DIR$/client.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/server.py" afterPath="$PROJECT_DIR$/server.py" />
     </list>
@@ -23,8 +27,8 @@
       <file leaf-file-name="client.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/client.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="475">
-              <caret line="112" column="59" lean-forward="true" selection-start-line="112" selection-start-column="59" selection-end-line="112" selection-end-column="59" />
+            <state relative-caret-position="-1247">
+              <caret line="212" column="98" lean-forward="false" selection-start-line="212" selection-start-column="98" selection-end-line="212" selection-end-column="98" />
               <folding>
                 <element signature="e#0#10#0" expanded="true" />
               </folding>
@@ -35,8 +39,8 @@
       <file leaf-file-name="server.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/server.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="444">
-              <caret line="91" column="22" lean-forward="false" selection-start-line="91" selection-start-column="22" selection-end-line="91" selection-end-column="22" />
+            <state relative-caret-position="2619">
+              <caret line="376" column="72" lean-forward="false" selection-start-line="376" selection-start-column="72" selection-end-line="376" selection-end-column="72" />
               <folding>
                 <element signature="e#0#10#0" expanded="true" />
               </folding>
@@ -265,8 +269,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/client.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="475">
-          <caret line="112" column="59" lean-forward="true" selection-start-line="112" selection-start-column="59" selection-end-line="112" selection-end-column="59" />
+        <state relative-caret-position="-1247">
+          <caret line="212" column="98" lean-forward="false" selection-start-line="212" selection-start-column="98" selection-end-line="212" selection-end-column="98" />
           <folding>
             <element signature="e#0#10#0" expanded="true" />
           </folding>
@@ -275,8 +279,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/server.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="444">
-          <caret line="91" column="22" lean-forward="false" selection-start-line="91" selection-start-column="22" selection-end-line="91" selection-end-column="22" />
+        <state relative-caret-position="2619">
+          <caret line="376" column="72" lean-forward="false" selection-start-line="376" selection-start-column="72" selection-end-line="376" selection-end-column="72" />
           <folding>
             <element signature="e#0#10#0" expanded="true" />
           </folding>
