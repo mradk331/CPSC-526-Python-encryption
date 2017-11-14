@@ -113,7 +113,7 @@ def read_file(command, filename, client_socket):
                     break
 
                 # Decrease size counter for every 1024 bytes read
-                size_of_file_counter -= BLOCK_SIZE
+                size_of_file_counter -= len(data_chunk)
 
             # Write read data from server to standard output
             sys.stdout.write(file_output.decode(encoding='UTF-8'))
